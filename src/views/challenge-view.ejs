@@ -1,0 +1,27 @@
+<%- include('layout', { section: 'head', title: 'Challenge', currentNav: null, session: session }) %>
+<h1>Challenge: <%= challenger.name %> vs <%= opponent.name %></h1>
+<dl>
+  <dt>Proposed time:</dt><dd><%= challenge.proposed_time %></dd>
+  <dt>Proposed location:</dt><dd><%= challenge.proposed_location %></dd>
+  <% if (challenge.counter_time) { %>
+    <dt>Counter time:</dt><dd><%= challenge.counter_time %></dd>
+    <dt>Counter location:</dt><dd><%= challenge.counter_location %></dd>
+  <% } %>
+</dl>
+<form method="POST" action="/challenges/action" novalidate>
+  <input type="hidden" name="token" value="<%= challenge.token %>">
+  <input type="hidden" name="action" value="<%= action %>">
+  <% if (action === 'accept') { %>
+    <p>Confirm acceptance of this challenge?</p>
+    <button type="submit">Confirm Accept</button>
+  <% } else if (action === 'decline') { %>
+    <p>Confirm decline of this challenge?</p>
+    <button type="submit">Confirm Decline</button>
+  <% } else if (action === 'counter') { %>
+    <h2>Propose alternative</h2>
+    <label>Counter time<input type="datetime-local" name="counter_time" required></label>
+    <label>Counter location<input type="text" name="counter_location" required placeholder="e.g. Linden Hills Park"></label>
+    <button type="submit">Send counter</button>
+  <% } %>
+</form>
+<%- include('layout', { section: 'foot' }) %>

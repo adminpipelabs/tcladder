@@ -1,0 +1,37 @@
+<%- include('layout', { section: 'head', title: 'Register', currentNav: 'register', session: session }) %>
+
+<h1>Register</h1>
+
+<% if (error) { %>
+  <div class="error" role="alert"><%= error %></div>
+<% } %>
+
+<form method="POST" action="/register" novalidate>
+  <label>Name
+    <input type="text" name="name" required value="<%= form.name || '' %>">
+  </label>
+  <label>Email
+    <input type="email" name="email" required value="<%= form.email || '' %>">
+  </label>
+  <label>Password
+    <input type="password" name="password" required minlength="8">
+  </label>
+  <label>Phone
+    <input type="tel" name="phone" value="<%= form.phone || '' %>">
+  </label>
+  <label>NTRP rating
+    <select name="ntrp" required>
+      <option value="">Select your level...</option>
+      <% ['3.0','3.5','4.0','4.5+'].forEach(level => { %>
+        <option value="<%= level %>" <%= form.ntrp === level ? 'selected' : '' %>><%= level %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label>Location
+    <input type="text" name="location" value="<%= form.location || '' %>" placeholder="e.g. Minneapolis">
+  </label>
+  <button type="submit">Register</button>
+</form>
+<p><a href="/login">Already have an account? Log in</a></p>
+
+<%- include('layout', { section: 'foot' }) %>

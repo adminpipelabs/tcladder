@@ -1,0 +1,20 @@
+<%- include('layout', { section: 'head', title: 'Log in', currentNav: 'login', session: session }) %>
+
+<h1>Log in</h1>
+
+<% if (error) { %>
+  <div class="error" role="alert"><%= error %></div>
+<% } %>
+
+<form method="POST" action="/login" novalidate>
+  <label>Email
+    <input type="email" name="email" required value="<%= form.email || '' %>">
+  </label>
+  <label>Password
+    <input type="password" name="password" required>
+  </label>
+  <button type="submit">Log in</button>
+</form>
+<p><a href="/register">No account yet? Register</a></p>
+
+<%- include('layout', { section: 'foot' }) %>

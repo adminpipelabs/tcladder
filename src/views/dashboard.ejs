@@ -1,0 +1,63 @@
+<%- include('layout', { section: 'head', title: 'Dashboard', currentNav: 'dashboard', session: session }) %>
+<h1>Dashboard</h1>
+<section class="player-summary">
+  <p><strong><%= player.name %></strong> &middot; NTRP <%= player.ntrp %> &middot; Rank #<%= player.rank %></p>
+  <p><%= player.wins %>W <%= player.losses %>L</p>
+  <p><a href="/ladder/<%= player.ntrp %>">Find players to challenge &rarr;</a></p>
+</section>
+
+<section class="incoming">
+  <h2>Incoming challenges</h2>
+  <% if (incoming.length === 0) { %><p>No new challenges.</p><% } else { %>
+    <ul>
+    <% incoming.forEach(c => { %>
+      <li>
+        <strong><%= c.challenger_name %></strong> challenged you. Proposed: <%= c.proposed_time %> at <%= c.proposed_location %>.
+        <a href="/challenges/action?token=<%= c.token %>&amp;action=accept">Accept</a> &middot;
+        <a href="/challenges/action?token=<%= c.token %>&amp;action=counter">Counter</a> &middot;
+        <a href="/challenges/action?token=<%= c.token %>&amp;action=decline">Decline</a>
+      </li>
+    <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<section class="counter-incoming">
+  <h2>Counter responses awaiting you</h2>
+  <% if (counterIncoming.length === 0) { %><p>No counters awaiting your response.</p><% } else { %>
+    <ul>
+    <% counterIncoming.forEach(c => { %>
+      <li>
+        <strong><%= c.opponent_name %></strong> countered your challenge. Counter: <%= c.counter_time %> at <%= c.counter_location %>.
+        <a href="/challenges/action?token=<%= c.token %>&amp;action=accept">Accept counter</a> &middot;
+        <a href="/challenges/action?token=<%= c.token %>&amp;action=decline">Decline counter</a>
+      </li>
+    <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<section class="outgoing">
+  <h2>Sent challenges</h2>
+  <% if (outgoing.length === 0) { %><p>No outgoing challenges.</p><% } else { %>
+    <ul>
+    <% outgoing.forEach(c => { %>
+      <li>You challenged <strong><%= c.opponent_name %></strong> for <%= c.proposed_time %>. Awaiting their response.</li>
+    <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<section class="to-report">
+  <h2>Matches to report</h2>
+  <% if (toReport.length === 0) { %><p>No matches to report.</p><% } else { %>
+    <ul>
+    <% toReport.forEach(c => { %>
+      <li><%= c.challenger_name %> vs <%= c.opponent_name %> &mdash; <%= c.proposed_time %>
+        <a href="/challenges/report/<%= c.id %>">Report score</a>
+      </li>
+    <% }) %>
+    </ul>
+  <% } %>
+</section>
+<%- include('layout', { section: 'foot' }) %>

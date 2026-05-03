@@ -1,0 +1,33 @@
+<% if (locals.section === 'head') { %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> · TCLadder</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="site-header">
+  <a href="/" class="logo">TCLadder</a>
+  <nav class="main-nav">
+    <a href="/ladder/3.5"<%- locals.currentNav === 'ladder' ? ' class="active"' : '' %>>Ladder</a>
+    <% if (locals.session && locals.session.userId) { %>
+      <a href="/dashboard"<%- locals.currentNav === 'dashboard' ? ' class="active"' : '' %>>Dashboard</a>
+      <span class="player-name"><%= locals.session.playerName %></span>
+      <a href="/logout">Log out</a>
+    <% } else { %>
+      <a href="/login"<%- locals.currentNav === 'login' ? ' class="active"' : '' %>>Log in</a>
+      <a href="/register"<%- locals.currentNav === 'register' ? ' class="active"' : '' %>>Register</a>
+    <% } %>
+  </nav>
+</header>
+<main class="container">
+<% } else if (locals.section === 'foot') { %>
+</main>
+<footer class="site-footer">
+  <p>TCLadder · Twin Cities Flex Ladder League · <a href="mailto:mo@pipelabs.xyz">mo@pipelabs.xyz</a></p>
+</footer>
+</body>
+</html>
+<% } %>

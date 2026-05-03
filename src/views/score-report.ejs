@@ -1,0 +1,21 @@
+<%- include('layout', { section: 'head', title: 'Report score', currentNav: 'dashboard', session: session }) %>
+<h1>Report match score</h1>
+<p><%= challenger.name %> vs <%= opponent.name %></p>
+<p>Match: <%= challenge.proposed_time %> at <%= challenge.proposed_location %></p>
+<% if (error) { %><div class="error" role="alert"><%= error %></div><% } %>
+<form method="POST" action="/challenges/report" novalidate>
+  <input type="hidden" name="challenge_id" value="<%= challenge.id %>">
+  <label>Winner
+    <select name="winner_id" required>
+      <option value="">Select winner...</option>
+      <option value="<%= challenger.id %>"><%= challenger.name %></option>
+      <option value="<%= opponent.id %>"><%= opponent.name %></option>
+    </select>
+  </label>
+  <label>Score
+    <input type="text" name="score" required placeholder="e.g. 6-4, 6-3">
+  </label>
+  <button type="submit">Submit score</button>
+</form>
+<p><a href="/dashboard">Back to dashboard</a></p>
+<%- include('layout', { section: 'foot' }) %>

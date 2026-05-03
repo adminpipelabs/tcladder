@@ -1,0 +1,16 @@
+<%- include('layout', { section: 'head', title: 'New challenge', currentNav: 'dashboard', session: session }) %>
+<h1>Challenge <%= opponent.name %></h1>
+<p>You're challenging <strong><%= opponent.name %></strong> (rank #<%= opponent.rank %>, NTRP <%= opponent.ntrp %>).</p>
+<% if (error) { %><div class="error" role="alert"><%= error %></div><% } %>
+<form method="POST" action="/challenges/new" novalidate>
+  <input type="hidden" name="opponent_id" value="<%= opponent.id %>">
+  <label>Proposed time
+    <input type="datetime-local" name="proposed_time" required value="<%= form.proposed_time || '' %>">
+  </label>
+  <label>Court / location
+    <input type="text" name="proposed_location" required placeholder="e.g. Lake Hiawatha Park, Court 3" value="<%= form.proposed_location || '' %>">
+  </label>
+  <button type="submit">Send challenge</button>
+</form>
+<p><a href="/dashboard">Back to dashboard</a></p>
+<%- include('layout', { section: 'foot' }) %>

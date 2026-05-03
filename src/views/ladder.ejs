@@ -1,0 +1,40 @@
+<%- include('layout', { section: 'head', title: 'Ladder · ' + division, currentNav: 'ladder', session: session }) %>
+
+<h1>Ladder · <%= division %></h1>
+
+<nav class="division-tabs">
+  <% divisions.forEach(d => { %>
+    <a href="/ladder/<%= d %>"<%- d === division ? ' class="active"' : '' %>><%= d %></a>
+  <% }) %>
+</nav>
+
+<% if (!season) { %>
+  <p>No active season.</p>
+<% } else if (players.length === 0) { %>
+  <p>No players in <%= division %> yet.</p>
+<% } else { %>
+  <table class="ladder-table">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Name</th>
+        <th>Location</th>
+        <th>W</th>
+        <th>L</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% players.forEach(p => { %>
+        <tr>
+          <td>#<%= p.rank %></td>
+          <td><a href="/profile/<%= p.id %>"><%= p.name %></a></td>
+          <td><%= p.location || '' %></td>
+          <td><%= p.wins %></td>
+          <td><%= p.losses %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('layout', { section: 'foot' }) %>

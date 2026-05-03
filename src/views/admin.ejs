@@ -1,0 +1,55 @@
+<%- include('layout', { section: 'head', title: 'Admin', currentNav: null, session: session }) %>
+
+<h1>Admin &middot; <%= season.name %></h1>
+
+<p><a href="/admin/export" class="cta">Download players CSV</a></p>
+
+<h2>Players (<%= players.length %>)</h2>
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>ID</th><th>Name</th><th>Email</th><th>Phone</th>
+      <th>NTRP</th><th>Rank</th><th>W/L</th><th>Paid</th>
+      <th>Created</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% players.forEach(p => { %>
+      <tr>
+        <td><%= p.id %></td>
+        <td><a href="/profile/<%= p.id %>"><%= p.name %></a></td>
+        <td><%= p.email %></td>
+        <td><%= p.phone || '' %></td>
+        <td><%= p.ntrp %></td>
+        <td>#<%= p.rank %></td>
+        <td><%= p.wins %>/<%= p.losses %></td>
+        <td><%= p.paid ? 'paid' : 'unpaid' %></td>
+        <td><%= p.created_at %></td>
+        <td class="admin-actions">
+          <% if (!p.paid) { %>
+            <form method="POST" action="/admin/verify-payment" class="inline-form">
+              <input type="hidden" name="player_id" value="<%= p.id %>">
+              <button type="submit">Mark paid</button>
+            </form>
+          <% } %>
+          <form method="POST" action="/admin/remove-player" class="inline-form"
+                onsubmit="return confirm('Remove <%= p.name %>? This deletes the player and all their challenges.');">
+            <input type="hidden" name="player_id" value="<%= p.id %>">
+            <button type="submit" class="danger">Remove</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<h2>Override score</h2>
+<p class="admin-note">Use carefully. Reverses W/L counters from prior result. Rank shifts from the prior result are NOT auto-reversed.</p>
+<form method="POST" action="/admin/override-score">
+  <label>Challenge ID <input type="number" name="challenge_id" required></label>
+  <label>Winner player ID <input type="number" name="winner_id" required></label>
+  <label>Score <input type="text" name="score" required placeholder="e.g. 6-4, 6-3"></label>
+  <button type="submit">Override</button>
+</form>
+
+<%- include('layout', { section: 'foot' }) %>
