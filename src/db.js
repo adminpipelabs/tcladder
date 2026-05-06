@@ -27,7 +27,11 @@ db.exec(`
     email TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     phone TEXT,
-    ntrp TEXT NOT NULL CHECK(ntrp IN ('3.0','3.5','4.0','4.5+')),
+    sport TEXT NOT NULL DEFAULT 'tennis' CHECK(sport IN ('tennis','padel','pickleball')),
+    skill_level TEXT NOT NULL CHECK(skill_level IN (
+      '3.0','3.5','4.0','4.5+',
+      'beginner','intermediate','advanced','competitive'
+    )),
     location TEXT,
     paid INTEGER NOT NULL DEFAULT 0,
     stripe_session_id TEXT,
@@ -57,8 +61,99 @@ db.exec(`
   );
 `);
 
-// Idempotent season seed: only inserts when no active season exists.
-// Safe to run on every container startup.
+function runMigrations() {
+  db.prepare(`CREATE TABLE IF NOT EXISTS migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    run_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+
+  const ran = new Set(
+    db.prepare('SELECT name FROM migrations').all().map(r => r.name)
+  );
+
+  const migrations = [
+    {
+      name: 'add_sport_to_players',
+      up: () => db.prepare(`ALTER TABLE players ADD COLUMN sport TEXT NOT NULL DEFAULT 'tennis'`).run()
+    },
+    {
+      name: 'rename_ntrp_to_skill_level',
+      up: () => db.prepare(`ALTER TABLE players RENAME COLUMN ntrp TO skill_level`).run()
+    },
+    {
+      // SQLite cannot ALTER a CHECK constraint in place. After the column rename
+      // the original 'ntrp IN (3.0,3.5,4.0,4.5+)' CHECK becomes
+      // 'skill_level IN (3.0,3.5,4.0,4.5+)' — which would block padel/pickleball
+      // values. Rebuild the table with the expanded CHECK per SQLite docs.
+      name: 'expand_skill_level_check',
+      up: () => {
+        db.pragma('foreign_keys = OFF');
+        const tx = db.transaction(() => {
+          db.exec(`
+            CREATE TABLE players_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              season_id INTEGER REFERENCES seasons(id),
+              name TEXT NOT NULL,
+              email TEXT NOT NULL,
+              password_hash TEXT NOT NULL,
+              phone TEXT,
+              sport TEXT NOT NULL DEFAULT 'tennis' CHECK(sport IN ('tennis','padel','pickleball')),
+              skill_level TEXT NOT NULL CHECK(skill_level IN (
+                '3.0','3.5','4.0','4.5+',
+                'beginner','intermediate','advanced','competitive'
+              )),
+              location TEXT,
+              paid INTEGER NOT NULL DEFAULT 0,
+              stripe_session_id TEXT,
+              rank INTEGER,
+              wins INTEGER NOT NULL DEFAULT 0,
+              losses INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL DEFAULT (datetime('now')),
+              UNIQUE(email, season_id)
+            );
+            INSERT INTO players_new (
+              id, season_id, name, email, password_hash, phone,
+              sport, skill_level, location, paid, stripe_session_id,
+              rank, wins, losses, created_at
+            )
+            SELECT
+              id, season_id, name, email, password_hash, phone,
+              sport, skill_level, location, paid, stripe_session_id,
+              rank, wins, losses, created_at
+            FROM players;
+            DROP TABLE players;
+            ALTER TABLE players_new RENAME TO players;
+          `);
+        });
+        tx();
+        db.pragma('foreign_keys = ON');
+      }
+    }
+  ];
+
+  for (const m of migrations) {
+    if (ran.has(m.name)) continue;
+    try {
+      m.up();
+      db.prepare('INSERT INTO migrations (name) VALUES (?)').run(m.name);
+      console.log(`[db] migration: ${m.name}`);
+    } catch (e) {
+      const msg = e.message || '';
+      if (msg.includes('duplicate column') ||
+          msg.includes('already exists') ||
+          msg.includes('no such column')) {
+        db.prepare('INSERT OR IGNORE INTO migrations (name) VALUES (?)').run(m.name);
+        console.log(`[db] migration: ${m.name} (already applied)`);
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
+runMigrations();
+
 const existing = db.prepare('SELECT id FROM seasons WHERE active = 1').get();
 if (!existing) {
   const { SEASON_NAME, SEASON_START, SEASON_END } = process.env;

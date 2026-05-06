@@ -1,17 +1,24 @@
-<%- include('layout', { section: 'head', title: 'Ladder · ' + division, currentNav: 'ladder', session: session }) %>
+<%- include('layout', { section: 'head', title: 'Ladder · ' + sport + ' ' + level, currentNav: 'ladder', session: session }) %>
 
-<h1>Ladder · <%= division %></h1>
+<h1>Ladder &middot; <%= sport %> <%= level %></h1>
+
+<nav class="sport-tabs">
+  <% sports.forEach(s => { %>
+    <a href="/ladder/<%= s %>/<%= s === 'tennis' ? '3.5' : 'intermediate' %>"
+       class="sport-tab<%- s === sport ? ' active' : '' %>"><%= s %></a>
+  <% }) %>
+</nav>
 
 <nav class="division-tabs">
-  <% divisions.forEach(d => { %>
-    <a href="/ladder/<%= d %>"<%- d === division ? ' class="active"' : '' %>><%= d %></a>
+  <% validLevels.forEach(l => { %>
+    <a href="/ladder/<%= sport %>/<%= l %>"<%- l === level ? ' class="active"' : '' %>><%= l %></a>
   <% }) %>
 </nav>
 
 <% if (!season) { %>
   <p>No active season.</p>
 <% } else if (players.length === 0) { %>
-  <p>No players in <%= division %> yet.</p>
+  <p>No players in <%= sport %> <%= level %> yet.</p>
 <% } else { %>
   <table class="ladder-table">
     <thead>

@@ -239,3 +239,31 @@ dl dd { margin: 0.2rem 0 0; color: #1a1a1a; }
   h1 { font-size: 2rem; }
   .site-header { padding: 1rem 1.5rem; }
 }
+
+/* Sport tabs (v1.1 multi-sport) */
+.sport-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.sport-tab {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  font-size: 13px; font-weight: 500;
+  text-decoration: none;
+  color: #374151;
+  text-transform: capitalize;
+  background: #fff;
+}
+.sport-tab:hover { background: #f5f5f5; }
+.sport-tab.active {
+  background: #1B4332;
+  color: #fff;
+  border-color: #1B4332;
+}
+
+.admin-filters { margin: 0.5rem 0 1rem; font-size: 0.9rem; }
+.admin-filters a {
+  margin-right: 0.5rem;
+  padding: 0.2rem 0.6rem;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.admin-filters a.active { background: #1B4332; color: #fff; }

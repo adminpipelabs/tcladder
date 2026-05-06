@@ -19,13 +19,15 @@
   <label>Phone
     <input type="tel" name="phone" value="<%= form.phone || '' %>">
   </label>
-  <label>NTRP rating
-    <select name="ntrp" required>
-      <option value="">Select your level...</option>
-      <% ['3.0','3.5','4.0','4.5+'].forEach(level => { %>
-        <option value="<%= level %>" <%= form.ntrp === level ? 'selected' : '' %>><%= level %></option>
-      <% }) %>
+  <label>Sport
+    <select name="sport" id="sport-select" required>
+      <option value="tennis"     <%= form.sport === 'tennis'     ? 'selected' : '' %>>Tennis</option>
+      <option value="padel"      <%= form.sport === 'padel'      ? 'selected' : '' %>>Padel</option>
+      <option value="pickleball" <%= form.sport === 'pickleball' ? 'selected' : '' %>>Pickleball</option>
     </select>
+  </label>
+  <label>Skill level
+    <select name="skill_level" id="skill-select" required></select>
   </label>
   <label>Location
     <input type="text" name="location" value="<%= form.location || '' %>" placeholder="e.g. Minneapolis">
@@ -33,5 +35,29 @@
   <button type="submit">Register</button>
 </form>
 <p><a href="/login">Already have an account? Log in</a></p>
+
+<script>
+(function() {
+  var levels = {
+    tennis:     ['3.0','3.5','4.0','4.5+'],
+    padel:      ['beginner','intermediate','advanced','competitive'],
+    pickleball: ['beginner','intermediate','advanced','competitive']
+  };
+  var sportSel = document.getElementById('sport-select');
+  var skillSel = document.getElementById('skill-select');
+  var previousSkill = <%- JSON.stringify(form.skill_level || '') %>;
+
+  function updateSkills() {
+    var opts = levels[sportSel.value] || [];
+    skillSel.innerHTML = opts.map(function(o) {
+      var label = o.charAt(0).toUpperCase() + o.slice(1);
+      var sel = (o === previousSkill) ? ' selected' : '';
+      return '<option value="' + o + '"' + sel + '>' + label + '</option>';
+    }).join('');
+  }
+  sportSel.addEventListener('change', updateSkills);
+  updateSkills();
+})();
+</script>
 
 <%- include('layout', { section: 'foot' }) %>

@@ -5,7 +5,12 @@ const db = require('../db');
 const { requireAuth, requirePaid } = require('../middleware');
 
 const SALT_ROUNDS = 12;
-const VALID_NTRP = ['3.0', '3.5', '4.0', '4.5+'];
+const VALID_SPORTS = ['tennis', 'padel', 'pickleball'];
+const VALID_SKILL_LEVELS = {
+  tennis: ['3.0', '3.5', '4.0', '4.5+'],
+  padel: ['beginner', 'intermediate', 'advanced', 'competitive'],
+  pickleball: ['beginner', 'intermediate', 'advanced', 'competitive']
+};
 const normEmail = (e) => (e || '').trim().toLowerCase();
 
 router.get('/register', (req, res) => {
@@ -14,13 +19,24 @@ router.get('/register', (req, res) => {
 });
 
 router.post('/register', async (req, res) => {
-  const { name, password, phone, ntrp, location } = req.body;
+  const { name, password, phone, location } = req.body;
+  const sport = req.body.sport;
+  const skill_level = req.body.skill_level;
   const email = normEmail(req.body.email);
-  const form = { name, email, phone, ntrp, location };
+  const form = { name, email, phone, sport, skill_level, location };
 
-  if (!name || !email || !password || !ntrp) return res.render('register', { error: 'Name, email, password, and NTRP are required', form });
-  if (!VALID_NTRP.includes(ntrp)) return res.render('register', { error: 'Invalid NTRP rating', form });
-  if (password.length < 8) return res.render('register', { error: 'Password must be at least 8 characters', form });
+  if (!name || !email || !password || !sport || !skill_level) {
+    return res.render('register', { error: 'Name, email, password, sport, and skill level are required', form });
+  }
+  if (!VALID_SPORTS.includes(sport)) {
+    return res.render('register', { error: 'Invalid sport', form });
+  }
+  if (!VALID_SKILL_LEVELS[sport].includes(skill_level)) {
+    return res.render('register', { error: 'Invalid skill level for ' + sport, form });
+  }
+  if (password.length < 8) {
+    return res.render('register', { error: 'Password must be at least 8 characters', form });
+  }
 
   const season = db.prepare('SELECT id FROM seasons WHERE active = 1').get();
   if (!season) return res.render('register', { error: 'No active season - please contact the administrator', form });
@@ -30,12 +46,14 @@ router.post('/register', async (req, res) => {
   catch (err) { console.error('[auth] bcrypt hash failed', err); return res.render('register', { error: 'Server error - please try again', form }); }
 
   const create = db.transaction(() => {
-    const maxRank = db.prepare('SELECT MAX(rank) as m FROM players WHERE season_id = ? AND ntrp = ?').get(season.id, ntrp);
+    const maxRank = db.prepare(
+      'SELECT MAX(rank) as m FROM players WHERE season_id = ? AND sport = ? AND skill_level = ?'
+    ).get(season.id, sport, skill_level);
     const newRank = (maxRank.m || 0) + 1;
     const result = db.prepare(`
-      INSERT INTO players (season_id, name, email, password_hash, phone, ntrp, location, rank)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(season.id, name, email, passwordHash, phone || null, ntrp, location || null, newRank);
+      INSERT INTO players (season_id, name, email, password_hash, phone, sport, skill_level, location, rank)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(season.id, name, email, passwordHash, phone || null, sport, skill_level, location || null, newRank);
     return { id: result.lastInsertRowid, rank: newRank };
   });
 
@@ -51,6 +69,8 @@ router.post('/register', async (req, res) => {
   req.session.playerName = name;
   req.session.userRank = player.rank;
   req.session.email = email;
+  req.session.sport = sport;
+  req.session.skillLevel = skill_level;
   res.redirect('/dashboard');
 });
 
@@ -69,7 +89,7 @@ router.post('/login', async (req, res) => {
   const season = db.prepare('SELECT id FROM seasons WHERE active = 1').get();
   if (!season) return res.render('login', { error: 'No active season', form });
 
-  const player = db.prepare('SELECT id, name, email, password_hash, rank FROM players WHERE email = ? AND season_id = ?').get(email, season.id);
+  const player = db.prepare('SELECT id, name, email, password_hash, sport, skill_level, rank FROM players WHERE email = ? AND season_id = ?').get(email, season.id);
   if (!player) return res.render('login', { error: 'Invalid email or password', form });
 
   let valid;
@@ -81,6 +101,8 @@ router.post('/login', async (req, res) => {
   req.session.playerName = player.name;
   req.session.userRank = player.rank;
   req.session.email = player.email;
+  req.session.sport = player.sport;
+  req.session.skillLevel = player.skill_level;
   res.redirect('/dashboard');
 });
 
@@ -88,10 +110,12 @@ router.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/')
 router.get('/logout',  (req, res) => req.session.destroy(() => res.redirect('/')));
 
 router.get('/dashboard', requireAuth, requirePaid, (req, res) => {
-  const player = db.prepare('SELECT id, name, ntrp, rank, wins, losses FROM players WHERE id = ?').get(req.session.userId);
+  const player = db.prepare('SELECT id, name, sport, skill_level, rank, wins, losses FROM players WHERE id = ?').get(req.session.userId);
   if (!player) return req.session.destroy(() => res.redirect('/login'));
 
   req.session.userRank = player.rank;
+  req.session.sport = player.sport;
+  req.session.skillLevel = player.skill_level;
 
   const incoming = db.prepare(`
     SELECT c.*, p.name as challenger_name FROM challenges c

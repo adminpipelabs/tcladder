@@ -4,14 +4,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><%= title %> · TCLadder</title>
+<title><%= title %> · TCLadder — Tournament Court Ladder</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header class="site-header">
   <a href="/" class="logo">TCLadder</a>
   <nav class="main-nav">
-    <a href="/ladder/3.5"<%- locals.currentNav === 'ladder' ? ' class="active"' : '' %>>Ladder</a>
+    <a href="/ladder/tennis/3.5"<%- locals.currentNav === 'ladder' ? ' class="active"' : '' %>>Ladder</a>
     <% if (locals.session && locals.session.userId) { %>
       <a href="/dashboard"<%- locals.currentNav === 'dashboard' ? ' class="active"' : '' %>>Dashboard</a>
       <span class="player-name"><%= locals.session.playerName %></span>
@@ -26,7 +26,7 @@
 <% } else if (locals.section === 'foot') { %>
 </main>
 <footer class="site-footer">
-  <p>TCLadder · Twin Cities Flex Ladder League · <a href="mailto:mo@pipelabs.xyz">mo@pipelabs.xyz</a></p>
+  <p>Tournament Court Ladder · Tennis · Padel · Pickleball · <a href="mailto:mo@pipelabs.xyz">mo@pipelabs.xyz</a></p>
 </footer>
 </body>
 </html>

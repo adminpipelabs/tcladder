@@ -1,9 +1,9 @@
 <%- include('layout', { section: 'head', title: 'Dashboard', currentNav: 'dashboard', session: session }) %>
 <h1>Dashboard</h1>
 <section class="player-summary">
-  <p><strong><%= player.name %></strong> &middot; NTRP <%= player.ntrp %> &middot; Rank #<%= player.rank %></p>
+  <p><strong><%= player.name %></strong> &middot; <%= player.sport %> <%= player.skill_level %> &middot; Rank #<%= player.rank %></p>
   <p><%= player.wins %>W <%= player.losses %>L</p>
-  <p><a href="/ladder/<%= player.ntrp %>">Find players to challenge &rarr;</a></p>
+  <p><a href="/ladder/<%= player.sport %>/<%= player.skill_level %>">Find players to challenge &rarr;</a></p>
 </section>
 
 <section class="incoming">

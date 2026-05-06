@@ -1,6 +1,6 @@
 <%- include('layout', { section: 'head', title: 'New challenge', currentNav: 'dashboard', session: session }) %>
 <h1>Challenge <%= opponent.name %></h1>
-<p>You're challenging <strong><%= opponent.name %></strong> (rank #<%= opponent.rank %>, NTRP <%= opponent.ntrp %>).</p>
+<p>You're challenging <strong><%= opponent.name %></strong> (rank #<%= opponent.rank %>, <%= opponent.sport %> <%= opponent.skill_level %>).</p>
 <% if (error) { %><div class="error" role="alert"><%= error %></div><% } %>
 <form method="POST" action="/challenges/new" novalidate>
   <input type="hidden" name="opponent_id" value="<%= opponent.id %>">

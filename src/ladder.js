@@ -1,4 +1,4 @@
-function recalcRanks(db, seasonId, ntrp, challengerId, opponentId, winnerId) {
+function recalcRanks(db, seasonId, sport, skillLevel, challengerId, opponentId, winnerId) {
   const tx = db.transaction(() => {
     const challenger = db.prepare('SELECT id, rank FROM players WHERE id = ?').get(challengerId);
     const opponent = db.prepare('SELECT id, rank FROM players WHERE id = ?').get(opponentId);
@@ -12,16 +12,15 @@ function recalcRanks(db, seasonId, ntrp, challengerId, opponentId, winnerId) {
     db.prepare('UPDATE players SET wins = wins + 1 WHERE id = ?').run(winnerId);
     db.prepare('UPDATE players SET losses = losses + 1 WHERE id = ?').run(loserId);
 
-    // Rank swap only when challenger wins from below (higher rank number = lower position).
     if (winnerId === challengerId && challenger.rank > opponent.rank) {
       const newRank = opponent.rank;
       const oldRank = challenger.rank;
 
       db.prepare(`
         UPDATE players SET rank = rank + 1
-        WHERE season_id = ? AND ntrp = ? AND paid = 1
+        WHERE season_id = ? AND sport = ? AND skill_level = ? AND paid = 1
           AND rank >= ? AND rank < ?
-      `).run(seasonId, ntrp, newRank, oldRank);
+      `).run(seasonId, sport, skillLevel, newRank, oldRank);
 
       db.prepare('UPDATE players SET rank = ? WHERE id = ?').run(newRank, challengerId);
     }
@@ -41,7 +40,8 @@ if (require.main === module) {
       id INTEGER PRIMARY KEY,
       season_id INTEGER NOT NULL,
       name TEXT NOT NULL,
-      ntrp TEXT NOT NULL,
+      sport TEXT NOT NULL,
+      skill_level TEXT NOT NULL,
       paid INTEGER NOT NULL DEFAULT 1,
       rank INTEGER,
       wins INTEGER NOT NULL DEFAULT 0,
@@ -50,7 +50,7 @@ if (require.main === module) {
   `);
 
   const insert = db.prepare(
-    `INSERT INTO players (id, season_id, name, ntrp, rank) VALUES (?, 1, ?, '3.5', ?)`
+    `INSERT INTO players (id, season_id, name, sport, skill_level, rank) VALUES (?, 1, ?, 'tennis', '3.5', ?)`
   );
   insert.run(1, 'A', 1);
   insert.run(2, 'B', 2);
@@ -74,7 +74,7 @@ if (require.main === module) {
   console.log('Initial: ' + fmt(snap()));
 
   console.log('\nTest 1: D (rank 4) challenges B (rank 2), D wins -> D jumps to #2');
-  recalcRanks(db, 1, '3.5', 4, 2, 4);
+  recalcRanks(db, 1, 'tennis', '3.5', 4, 2, 4);
   const t1 = check('D=#2, B=#3, C=#4 shifted; D.wins=1, B.losses=1', [
     { name: 'A', rank: 1, wins: 0, losses: 0 },
     { name: 'D', rank: 2, wins: 1, losses: 0 },
@@ -83,7 +83,7 @@ if (require.main === module) {
   ]);
 
   console.log('\nTest 2: D (rank 2) challenges A (rank 1), A wins -> no rank change');
-  recalcRanks(db, 1, '3.5', 4, 1, 1);
+  recalcRanks(db, 1, 'tennis', '3.5', 4, 1, 1);
   const t2 = check('ranks unchanged; A.wins=1, D.losses=1', [
     { name: 'A', rank: 1, wins: 1, losses: 0 },
     { name: 'D', rank: 2, wins: 1, losses: 1 },
@@ -92,7 +92,7 @@ if (require.main === module) {
   ]);
 
   console.log('\nTest 3: C (rank 4) challenges D (rank 2), C wins -> C jumps to #2');
-  recalcRanks(db, 1, '3.5', 3, 4, 3);
+  recalcRanks(db, 1, 'tennis', '3.5', 3, 4, 3);
   const t3 = check('C=#2, D=#3, B=#4; C.wins=1, D.losses=2', [
     { name: 'A', rank: 1, wins: 1, losses: 0 },
     { name: 'C', rank: 2, wins: 1, losses: 0 },

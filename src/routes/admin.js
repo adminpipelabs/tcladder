@@ -4,6 +4,8 @@ const db = require('../db');
 const { recalcRanks } = require('../ladder');
 const { requireAdmin } = require('../middleware');
 
+const VALID_SPORTS = ['tennis', 'padel', 'pickleball'];
+
 router.use(requireAdmin);
 
 function getActiveSeason() {
@@ -20,18 +22,28 @@ router.get('/admin', (req, res) => {
   const season = getActiveSeason();
   if (!season) return res.status(503).send('No active season');
 
-  const players = db.prepare(`
-    SELECT id, name, email, phone, ntrp, rank, wins, losses, paid, created_at
-    FROM players WHERE season_id = ?
-    ORDER BY ntrp, rank
-  `).all(season.id);
+  const sportFilter = req.query.sport;
+  const filterValid = sportFilter && VALID_SPORTS.includes(sportFilter);
+
+  const players = filterValid
+    ? db.prepare(`
+        SELECT id, name, email, phone, sport, skill_level, rank, wins, losses, paid, created_at
+        FROM players WHERE season_id = ? AND sport = ?
+        ORDER BY skill_level, rank
+      `).all(season.id, sportFilter)
+    : db.prepare(`
+        SELECT id, name, email, phone, sport, skill_level, rank, wins, losses, paid, created_at
+        FROM players WHERE season_id = ?
+        ORDER BY sport, skill_level, rank
+      `).all(season.id);
 
   res.render('admin', {
     title: 'Admin',
     currentNav: null,
     session: req.session,
     season,
-    players
+    players,
+    sportFilter: filterValid ? sportFilter : null
   });
 });
 
@@ -49,9 +61,6 @@ router.post('/admin/remove-player', (req, res) => {
   const playerId = parseInt(req.body.player_id, 10);
   if (!Number.isInteger(playerId)) return res.status(400).send('Invalid player id');
 
-  // Schema doesn't declare ON DELETE CASCADE, so manually clear referencing rows
-  // before deleting the player. FK enforcement (foreign_keys=ON) would block
-  // a direct DELETE otherwise.
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM challenges WHERE challenger_id = ? OR opponent_id = ? OR winner_id = ?')
       .run(playerId, playerId, playerId);
@@ -73,18 +82,16 @@ router.post('/admin/override-score', (req, res) => {
   const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(challengeId);
   if (!challenge) return res.status(404).send('Challenge not found');
   if (challenge.status !== 'completed' && challenge.status !== 'accepted') {
-    return res.status(410).send(`Challenge is ${challenge.status}, cannot override`);
+    return res.status(410).send('Challenge is ' + challenge.status + ', cannot override');
   }
   if (winnerId !== challenge.challenger_id && winnerId !== challenge.opponent_id) {
     return res.status(400).send('Winner must be one of the players');
   }
 
-  const challenger = db.prepare('SELECT id, ntrp FROM players WHERE id = ?').get(challenge.challenger_id);
+  const challenger = db.prepare('SELECT id, sport, skill_level FROM players WHERE id = ?').get(challenge.challenger_id);
   if (!challenger) return res.status(500).send('Challenger not found');
 
   const tx = db.transaction(() => {
-    // If already completed, reverse the W/L counters from the prior recalc.
-    // Rank shifts from the prior recalc are NOT reversed — admin must verify.
     if (challenge.status === 'completed' && challenge.winner_id) {
       const oldWinner = challenge.winner_id;
       const oldLoser = challenge.challenger_id === oldWinner ? challenge.opponent_id : challenge.challenger_id;
@@ -97,7 +104,7 @@ router.post('/admin/override-score', (req, res) => {
       WHERE id=?
     `).run(winnerId, score, challengeId);
 
-    recalcRanks(db, challenge.season_id, challenger.ntrp,
+    recalcRanks(db, challenge.season_id, challenger.sport, challenger.skill_level,
       challenge.challenger_id, challenge.opponent_id, winnerId);
   });
 
@@ -115,12 +122,12 @@ router.get('/admin/export', (req, res) => {
   if (!season) return res.status(503).send('No active season');
 
   const players = db.prepare(`
-    SELECT name, email, phone, ntrp, rank, wins, losses, paid, created_at
+    SELECT name, email, phone, sport, skill_level, rank, wins, losses, paid, created_at
     FROM players WHERE season_id = ?
-    ORDER BY ntrp, rank
+    ORDER BY sport, skill_level, rank
   `).all(season.id);
 
-  const headers = ['name', 'email', 'phone', 'ntrp', 'rank', 'wins', 'losses', 'paid', 'created_at'];
+  const headers = ['name', 'email', 'phone', 'sport', 'skill_level', 'rank', 'wins', 'losses', 'paid', 'created_at'];
   const lines = [headers.join(',')];
   for (const p of players) {
     lines.push(headers.map(h => csvEscape(p[h])).join(','));

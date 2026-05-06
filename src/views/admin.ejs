@@ -4,12 +4,20 @@
 
 <p><a href="/admin/export" class="cta">Download players CSV</a></p>
 
+<nav class="admin-filters">
+  Filter:
+  <a href="/admin"<%- !sportFilter ? ' class="active"' : '' %>>All</a>
+  <a href="/admin?sport=tennis"<%- sportFilter === 'tennis' ? ' class="active"' : '' %>>Tennis</a>
+  <a href="/admin?sport=padel"<%- sportFilter === 'padel' ? ' class="active"' : '' %>>Padel</a>
+  <a href="/admin?sport=pickleball"<%- sportFilter === 'pickleball' ? ' class="active"' : '' %>>Pickleball</a>
+</nav>
+
 <h2>Players (<%= players.length %>)</h2>
 <table class="admin-table">
   <thead>
     <tr>
       <th>ID</th><th>Name</th><th>Email</th><th>Phone</th>
-      <th>NTRP</th><th>Rank</th><th>W/L</th><th>Paid</th>
+      <th>Sport</th><th>Skill</th><th>Rank</th><th>W/L</th><th>Paid</th>
       <th>Created</th><th>Actions</th>
     </tr>
   </thead>
@@ -20,7 +28,8 @@
         <td><a href="/profile/<%= p.id %>"><%= p.name %></a></td>
         <td><%= p.email %></td>
         <td><%= p.phone || '' %></td>
-        <td><%= p.ntrp %></td>
+        <td><%= p.sport %></td>
+        <td><%= p.skill_level %></td>
         <td>#<%= p.rank %></td>
         <td><%= p.wins %>/<%= p.losses %></td>
         <td><%= p.paid ? 'paid' : 'unpaid' %></td>

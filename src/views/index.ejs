@@ -1,23 +1,27 @@
 <%- include('layout', { section: 'head', title: 'Home', currentNav: 'home', session: session }) %>
 
 <section class="hero">
-  <h1>Twin Cities Flex Ladder</h1>
-  <p>Singles tennis. Challenge anyone within 3 ranks above you. Public courts. No drama.</p>
+  <h1>Tournament Court Ladder</h1>
+  <p>Tennis. Padel. Pickleball. Your court, your schedule.</p>
   <% if (!session.userId) { %>
-    <p><a href="/register" class="cta">Register · $30</a></p>
+    <p><a href="/register" class="cta">Register · $30 / year</a></p>
   <% } %>
 </section>
 
 <% if (season) { %>
   <section class="season-info">
     <h2><%= season.name %></h2>
-    <p><%= totalPlayers %> registered player<%= totalPlayers === 1 ? '' : 's' %></p>
+    <p>
+      Tennis: <strong><%= counts.tennis %></strong> &middot;
+      Padel: <strong><%= counts.padel %></strong> &middot;
+      Pickleball: <strong><%= counts.pickleball %></strong>
+    </p>
   </section>
 
   <section class="preview">
-    <h2>Top 5 — <%= previewDivision %></h2>
+    <h2>Top 5 — <%= previewSport %> <%= previewLevel %></h2>
     <% if (topPlayers.length === 0) { %>
-      <p>No players in <%= previewDivision %> yet.</p>
+      <p>No players in <%= previewSport %> <%= previewLevel %> yet.</p>
     <% } else { %>
       <ol class="ladder-preview">
         <% topPlayers.forEach(p => { %>
@@ -30,7 +34,7 @@
         <% }) %>
       </ol>
     <% } %>
-    <p><a href="/ladder/<%= previewDivision %>">See full ladder &rarr;</a></p>
+    <p><a href="/ladder/<%= previewSport %>/<%= previewLevel %>">See full ladder &rarr;</a></p>
   </section>
 <% } else { %>
   <section class="season-info">
