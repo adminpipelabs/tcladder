@@ -1,62 +1,160 @@
 <%- include('layout', { section: 'head', title: 'Register', currentNav: 'register', session: session }) %>
 
-<h1>Register</h1>
+<h1>Join the ladder</h1>
 
-<% if (error) { %>
-  <div class="error" role="alert"><%= error %></div>
+<% if (locals.error) { %>
+  <div class="error" role="alert">
+    <% if (error === 'missing_fields') { %>
+      Please fill in all required fields.
+    <% } else if (error === 'phone_taken') { %>
+      A player with that phone number is already registered.
+    <% } else if (error === 'invalid_sport' || error === 'invalid_level') { %>
+      Please select a valid sport and skill level.
+    <% } else if (error === 'no_active_season') { %>
+      No active season — please contact the administrator.
+    <% } else if (error === 'server_error') { %>
+      Something went wrong on our end. Please try again.
+    <% } else { %>
+      <%= error %>
+    <% } %>
+  </div>
 <% } %>
 
-<form method="POST" action="/register" novalidate>
-  <label>Name
-    <input type="text" name="name" required value="<%= form.name || '' %>">
-  </label>
-  <label>Email
-    <input type="email" name="email" required value="<%= form.email || '' %>">
-  </label>
-  <label>Password
-    <input type="password" name="password" required minlength="8">
-  </label>
-  <label>Phone
-    <input type="tel" name="phone" value="<%= form.phone || '' %>">
-  </label>
-  <label>Sport
-    <select name="sport" id="sport-select" required>
-      <option value="tennis"     <%= form.sport === 'tennis'     ? 'selected' : '' %>>Tennis</option>
-      <option value="padel"      <%= form.sport === 'padel'      ? 'selected' : '' %>>Padel</option>
-      <option value="pickleball" <%= form.sport === 'pickleball' ? 'selected' : '' %>>Pickleball</option>
-    </select>
-  </label>
-  <label>Skill level
-    <select name="skill_level" id="skill-select" required></select>
-  </label>
-  <label>Location
-    <input type="text" name="location" value="<%= form.location || '' %>" placeholder="e.g. Minneapolis">
-  </label>
-  <button type="submit">Register</button>
+<div class="step-dots" aria-hidden="true">
+  <span class="step-dot active"></span>
+  <span class="step-dot"></span>
+  <span class="step-dot"></span>
+</div>
+
+<form id="reg-form" method="POST" action="/register" enctype="multipart/form-data" novalidate>
+  <input type="hidden" name="sport"       id="f-sport">
+  <input type="hidden" name="skill_level" id="f-level">
+
+  <section id="step-1" class="reg-step">
+    <h2>Pick a sport</h2>
+    <div class="sport-grid">
+      <div class="sport-card" data-sport="tennis">
+        <span class="sport-emoji">&#127934;</span>
+        <span class="sport-label">Tennis</span>
+      </div>
+      <div class="sport-card" data-sport="padel">
+        <span class="sport-emoji">&#127934;</span>
+        <span class="sport-label">Padel</span>
+      </div>
+      <div class="sport-card" data-sport="pickleball">
+        <span class="sport-emoji">&#127934;</span>
+        <span class="sport-label">Pickleball</span>
+      </div>
+    </div>
+
+    <h2>Skill level</h2>
+    <div class="level-grid" id="level-grid">
+      <p class="muted">Pick a sport first.</p>
+    </div>
+
+    <button type="button" class="submit-btn" id="next-1" disabled>Next &rarr;</button>
+  </section>
+
+  <section id="step-2" class="reg-step" hidden>
+    <h2>About you</h2>
+    <label>Full name
+      <input type="text" name="name" required placeholder="Your name">
+    </label>
+    <label>Phone (WhatsApp)
+      <input type="tel" name="phone" required placeholder="+1 612 555 0100">
+    </label>
+    <label>Preferred courts <span class="muted">(optional)</span>
+      <input type="text" name="location" placeholder="Highland Park, St. Paul">
+    </label>
+    <label>Photo <span class="muted">(optional)</span>
+      <input type="file" name="photo" accept=".jpg,.jpeg,.png">
+    </label>
+    <button type="submit" class="submit-btn">Join the ladder &rarr;</button>
+    <button type="button" class="back-btn" id="back-2">&larr; Back</button>
+  </section>
 </form>
-<p><a href="/login">Already have an account? Log in</a></p>
 
 <script>
-(function() {
+(function () {
   var levels = {
-    tennis:     ['3.0','3.5','4.0','4.5+'],
-    padel:      ['beginner','intermediate','advanced','competitive'],
-    pickleball: ['beginner','intermediate','advanced','competitive']
+    tennis:     [{v:'3.0',l:'Beginner'},{v:'3.5',l:'Intermediate'},{v:'4.0',l:'Advanced'},{v:'4.5+',l:'Competitive'}],
+    padel:      [{v:'beginner',l:'Beginner'},{v:'intermediate',l:'Intermediate'},{v:'advanced',l:'Advanced'},{v:'competitive',l:'Competitive'}],
+    pickleball: [{v:'beginner',l:'Beginner'},{v:'intermediate',l:'Intermediate'},{v:'advanced',l:'Advanced'},{v:'competitive',l:'Competitive'}]
   };
-  var sportSel = document.getElementById('sport-select');
-  var skillSel = document.getElementById('skill-select');
-  var previousSkill = <%- JSON.stringify(form.skill_level || '') %>;
 
-  function updateSkills() {
-    var opts = levels[sportSel.value] || [];
-    skillSel.innerHTML = opts.map(function(o) {
-      var label = o.charAt(0).toUpperCase() + o.slice(1);
-      var sel = (o === previousSkill) ? ' selected' : '';
-      return '<option value="' + o + '"' + sel + '>' + label + '</option>';
-    }).join('');
+  var fSport = document.getElementById('f-sport');
+  var fLevel = document.getElementById('f-level');
+  var sportGrid = document.querySelector('.sport-grid');
+  var levelGrid = document.getElementById('level-grid');
+  var next1 = document.getElementById('next-1');
+  var back2 = document.getElementById('back-2');
+  var step1 = document.getElementById('step-1');
+  var step2 = document.getElementById('step-2');
+  var dots  = document.querySelectorAll('.step-dot');
+
+  function setDots(n) {
+    dots.forEach(function (d, i) { d.classList.toggle('active', i < n); });
   }
-  sportSel.addEventListener('change', updateSkills);
-  updateSkills();
+
+  function checkReady() {
+    next1.disabled = !(fSport.value && fLevel.value);
+  }
+
+  function renderLevels(sport) {
+    levelGrid.innerHTML = '';
+    fLevel.value = '';
+    var list = levels[sport] || [];
+    list.forEach(function (item) {
+      var card = document.createElement('div');
+      card.className = 'level-card';
+      card.dataset.level = item.v;
+      card.innerHTML =
+        '<div class="level-name">' + item.l + '</div>' +
+        '<div class="level-desc">' + item.v + '</div>';
+      card.addEventListener('click', function () {
+        levelGrid.querySelectorAll('.level-card').forEach(function (c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        fLevel.value = item.v;
+        checkReady();
+      });
+      levelGrid.appendChild(card);
+    });
+    checkReady();
+  }
+
+  sportGrid.querySelectorAll('.sport-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      sportGrid.querySelectorAll('.sport-card').forEach(function (c) { c.classList.remove('selected'); });
+      card.classList.add('selected');
+      fSport.value = card.dataset.sport;
+      renderLevels(card.dataset.sport);
+    });
+  });
+
+  next1.addEventListener('click', function () {
+    if (!fSport.value || !fLevel.value) return;
+    step1.hidden = true;
+    step2.hidden = false;
+    setDots(2);
+    window.scrollTo(0, 0);
+  });
+
+  back2.addEventListener('click', function () {
+    step2.hidden = true;
+    step1.hidden = false;
+    setDots(1);
+    window.scrollTo(0, 0);
+  });
+
+  document.getElementById('reg-form').addEventListener('submit', function (e) {
+    if (!fSport.value || !fLevel.value) {
+      e.preventDefault();
+      step1.hidden = false;
+      step2.hidden = true;
+      setDots(1);
+      alert('Please pick a sport and skill level first.');
+    }
+  });
 })();
 </script>
 

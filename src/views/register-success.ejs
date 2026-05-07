@@ -1,0 +1,19 @@
+<%- include('layout', { section: 'head', title: 'Welcome', currentNav: null, session: session }) %>
+
+<div class="success-screen">
+  <div class="success-icon" aria-hidden="true">&#10003;</div>
+  <h1>You're on the ladder!</h1>
+  <p>Welcome, <strong><%= name || 'player' %></strong>.</p>
+  <p>You've been placed at <span class="rank-pill">#<%= rank %></span> in <%= sport %> <%= level %>.</p>
+  <p class="muted">Your rank will be confirmed once your $30 membership is active.</p>
+
+  <% if (kaziWaNumber) { %>
+    <a href="https://wa.me/<%= kaziWaNumber %>?text=Hi+I+just+joined+TCLadder" class="wa-btn">
+      Connect on WhatsApp
+    </a>
+  <% } %>
+
+  <p><a href="/ladder/<%= sport %>/<%= level %>">View the ladder &rarr;</a></p>
+</div>
+
+<%- include('layout', { section: 'foot' }) %>

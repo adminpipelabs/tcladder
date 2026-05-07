@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const db = require('../db');
-const mailer = require('../mailer');
+const kazi = require('../kazi');
 const { recalcRanks } = require('../ladder');
 const { requireAuth, requirePaid } = require('../middleware');
 
@@ -58,10 +58,10 @@ router.post('/new', requireAuth, requirePaid, (req, res) => {
   const season = getActiveSeason();
   if (!season) return res.status(503).send('No active season');
 
-  const opponent = db.prepare('SELECT id, name, email, sport, skill_level, rank FROM players WHERE id = ?').get(opponentId);
+  const opponent = db.prepare('SELECT id, name, email, phone, sport, skill_level, rank FROM players WHERE id = ?').get(opponentId);
   if (!opponent || opponent.id === req.session.userId) return res.status(404).send('Opponent not found');
 
-  const challenger = db.prepare('SELECT id, name, email, sport, skill_level, rank FROM players WHERE id = ?').get(req.session.userId);
+  const challenger = db.prepare('SELECT id, name, email, phone, sport, skill_level, rank FROM players WHERE id = ?').get(req.session.userId);
   if (!challenger) return res.status(404).send('Challenger not found');
 
   if (opponent.sport !== challenger.sport) {
@@ -84,7 +84,7 @@ router.post('/new', requireAuth, requirePaid, (req, res) => {
 
   const challenge = db.prepare('SELECT * FROM challenges WHERE id = ?').get(result.lastInsertRowid);
 
-  mailer.sendChallenge(opponent, challenger, challenge);
+  kazi.sendChallenge(opponent, challenger, challenge);
 
   res.redirect('/dashboard');
 });
@@ -102,8 +102,8 @@ router.get('/action', (req, res) => {
     return res.status(400).send('Cannot counter a counter');
   }
 
-  const challenger = db.prepare('SELECT id, name, email FROM players WHERE id = ?').get(challenge.challenger_id);
-  const opponent = db.prepare('SELECT id, name, email FROM players WHERE id = ?').get(challenge.opponent_id);
+  const challenger = db.prepare('SELECT id, name, email, phone FROM players WHERE id = ?').get(challenge.challenger_id);
+  const opponent = db.prepare('SELECT id, name, email, phone FROM players WHERE id = ?').get(challenge.opponent_id);
 
   res.render('challenge-view', {
     title: 'Challenge',
@@ -126,19 +126,19 @@ router.post('/action', (req, res) => {
     return res.status(400).send('Cannot counter a counter');
   }
 
-  const challenger = db.prepare('SELECT id, name, email FROM players WHERE id = ?').get(challenge.challenger_id);
-  const opponent = db.prepare('SELECT id, name, email FROM players WHERE id = ?').get(challenge.opponent_id);
+  const challenger = db.prepare('SELECT id, name, email, phone, sport FROM players WHERE id = ?').get(challenge.challenger_id);
+  const opponent = db.prepare('SELECT id, name, email, phone, sport FROM players WHERE id = ?').get(challenge.opponent_id);
   const wasCountered = challenge.status === 'countered';
 
   if (action === 'accept') {
     db.prepare(`UPDATE challenges SET status='accepted', updated_at=datetime('now') WHERE id=?`).run(challenge.id);
     const updated = db.prepare('SELECT * FROM challenges WHERE id = ?').get(challenge.id);
-    if (wasCountered) mailer.sendAccepted(opponent, challenger, updated);
-    else mailer.sendAccepted(challenger, opponent, updated);
+    if (wasCountered) kazi.sendAccepted(opponent, challenger, updated);
+    else kazi.sendAccepted(challenger, opponent, updated);
   } else if (action === 'decline') {
     db.prepare(`UPDATE challenges SET status='declined', updated_at=datetime('now') WHERE id=?`).run(challenge.id);
-    if (wasCountered) mailer.sendDeclined(opponent, challenger);
-    else mailer.sendDeclined(challenger, opponent);
+    if (wasCountered) kazi.sendDeclined(opponent, challenger);
+    else kazi.sendDeclined(challenger, opponent);
   } else if (action === 'counter') {
     if (!counter_time || !counter_location) return res.status(400).send('Counter requires time and location');
     const newToken = crypto.randomBytes(32).toString('hex');
@@ -148,7 +148,7 @@ router.post('/action', (req, res) => {
       WHERE id=?
     `).run(counter_time, counter_location, newToken, challenge.id);
     const updated = db.prepare('SELECT * FROM challenges WHERE id = ?').get(challenge.id);
-    mailer.sendCountered(challenger, opponent, updated);
+    kazi.sendCountered(challenger, opponent, updated);
   }
 
   res.send('Thanks - your response has been recorded. You can close this tab.');
@@ -199,8 +199,8 @@ router.post('/report', requireAuth, requirePaid, (req, res) => {
     return res.status(400).send('Winner must be one of the players');
   }
 
-  const challenger = db.prepare('SELECT id, name, email, sport, skill_level FROM players WHERE id = ?').get(challenge.challenger_id);
-  const opponent = db.prepare('SELECT id, name, email, sport, skill_level FROM players WHERE id = ?').get(challenge.opponent_id);
+  const challenger = db.prepare('SELECT id, name, email, phone, sport, skill_level FROM players WHERE id = ?').get(challenge.challenger_id);
+  const opponent = db.prepare('SELECT id, name, email, phone, sport, skill_level FROM players WHERE id = ?').get(challenge.opponent_id);
   const sport = challenger.sport;
   const skill_level = challenger.skill_level;
 
@@ -220,7 +220,7 @@ router.post('/report', requireAuth, requirePaid, (req, res) => {
 
   const winner = winnerId === challenger.id ? challenger : opponent;
   const loser  = winnerId === challenger.id ? opponent  : challenger;
-  mailer.sendScore(winner, loser, score);
+  kazi.sendScore(winner, loser, score, sport, skill_level);
 
   res.redirect('/ladder/' + sport + '/' + skill_level);
 });

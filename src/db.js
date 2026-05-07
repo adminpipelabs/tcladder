@@ -24,22 +24,23 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     season_id INTEGER REFERENCES seasons(id),
     name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    password_hash TEXT NOT NULL,
+    email TEXT,
+    password_hash TEXT,
     phone TEXT,
+    phone_verified INTEGER NOT NULL DEFAULT 0,
     sport TEXT NOT NULL DEFAULT 'tennis' CHECK(sport IN ('tennis','padel','pickleball')),
     skill_level TEXT NOT NULL CHECK(skill_level IN (
       '3.0','3.5','4.0','4.5+',
       'beginner','intermediate','advanced','competitive'
     )),
     location TEXT,
+    photo_path TEXT,
     paid INTEGER NOT NULL DEFAULT 0,
     stripe_session_id TEXT,
     rank INTEGER,
     wins INTEGER NOT NULL DEFAULT 0,
     losses INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(email, season_id)
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS challenges (
@@ -82,10 +83,6 @@ function runMigrations() {
       up: () => db.prepare(`ALTER TABLE players RENAME COLUMN ntrp TO skill_level`).run()
     },
     {
-      // SQLite cannot ALTER a CHECK constraint in place. After the column rename
-      // the original 'ntrp IN (3.0,3.5,4.0,4.5+)' CHECK becomes
-      // 'skill_level IN (3.0,3.5,4.0,4.5+)' — which would block padel/pickleball
-      // values. Rebuild the table with the expanded CHECK per SQLite docs.
       name: 'expand_skill_level_check',
       up: () => {
         db.pragma('foreign_keys = OFF');
@@ -125,6 +122,67 @@ function runMigrations() {
             DROP TABLE players;
             ALTER TABLE players_new RENAME TO players;
           `);
+        });
+        tx();
+        db.pragma('foreign_keys = ON');
+      }
+    },
+    {
+      name: 'add_phone_verified',
+      up: () => db.prepare(`ALTER TABLE players ADD COLUMN phone_verified INTEGER NOT NULL DEFAULT 0`).run()
+    },
+    {
+      name: 'add_phone_unique_index',
+      up: () => db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_phone_season ON players(phone, season_id)`).run()
+    },
+    {
+      // SQLite can't drop NOT NULL or UNIQUE in place. Rebuild to:
+      //   - make password_hash nullable (mobile signups have no password)
+      //   - drop UNIQUE(email, season_id) (phone is the new identity)
+      //   - add photo_path column (mobile signups can upload a photo)
+      // Explicit column list (NOT SELECT *) since old/new column counts differ.
+      name: 'make_password_hash_nullable',
+      up: () => {
+        db.pragma('foreign_keys = OFF');
+        const tx = db.transaction(() => {
+          db.exec(`
+            CREATE TABLE players_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              season_id INTEGER REFERENCES seasons(id),
+              name TEXT NOT NULL,
+              email TEXT,
+              password_hash TEXT,
+              phone TEXT,
+              phone_verified INTEGER NOT NULL DEFAULT 0,
+              sport TEXT NOT NULL DEFAULT 'tennis' CHECK(sport IN ('tennis','padel','pickleball')),
+              skill_level TEXT NOT NULL CHECK(skill_level IN (
+                '3.0','3.5','4.0','4.5+',
+                'beginner','intermediate','advanced','competitive'
+              )),
+              location TEXT,
+              photo_path TEXT,
+              paid INTEGER NOT NULL DEFAULT 0,
+              stripe_session_id TEXT,
+              rank INTEGER,
+              wins INTEGER NOT NULL DEFAULT 0,
+              losses INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO players_new (
+              id, season_id, name, email, password_hash, phone, phone_verified,
+              sport, skill_level, location, paid, stripe_session_id,
+              rank, wins, losses, created_at
+            )
+            SELECT
+              id, season_id, name, email, password_hash, phone, phone_verified,
+              sport, skill_level, location, paid, stripe_session_id,
+              rank, wins, losses, created_at
+            FROM players;
+            DROP TABLE players;
+            ALTER TABLE players_new RENAME TO players;
+          `);
+          // The DROP TABLE wiped the unique index — recreate it on the new table
+          db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_phone_season ON players(phone, season_id)`).run();
         });
         tx();
         db.pragma('foreign_keys = ON');

@@ -8,5 +8,6 @@ services:
       - "127.0.0.1:3500:3500"
     volumes:
       - ./data:/app/data
+      - ./uploads:/app/src/public/uploads
     env_file:
       - .env

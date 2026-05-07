@@ -267,3 +267,104 @@ dl dd { margin: 0.2rem 0 0; color: #1a1a1a; }
   border-radius: 4px;
 }
 .admin-filters a.active { background: #1B4332; color: #fff; }
+
+/* === v1.2 Mobile registration === */
+
+/* Mobile registration — sport cards */
+.sport-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px; margin-bottom: 16px;
+}
+.sport-card {
+  border: 1.5px solid #ddd;
+  border-radius: 12px;
+  padding: 14px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sport-card.selected {
+  border-color: #1B4332;
+  background: #EAF3DE;
+}
+.sport-emoji { font-size: 24px; display: block; margin-bottom: 4px; }
+.sport-label { font-size: 12px; font-weight: 500; }
+.sport-card.selected .sport-label { color: #27500A; }
+
+/* Level cards — 2x2 grid */
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px; margin-bottom: 16px;
+}
+.level-card {
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+.level-card.selected { border-color: #1B4332; background: #EAF3DE; }
+.level-name { font-size: 15px; font-weight: 500; }
+.level-desc { font-size: 12px; color: #888; margin-top: 2px; }
+.level-card.selected .level-name { color: #27500A; }
+
+/* Step indicator dots */
+.step-dots {
+  display: flex; gap: 6px; justify-content: center; margin-bottom: 20px;
+}
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: #D1D5DB; }
+.step-dot.active { background: #1B4332; }
+
+/* Submit + back buttons in registration */
+.submit-btn {
+  width: 100%; padding: 14px;
+  background: #1B4332; color: #fff;
+  border: 0; border-radius: 10px;
+  font-size: 15px; font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.submit-btn:disabled { background: #D1D5DB; cursor: not-allowed; }
+.back-btn {
+  width: 100%; padding: 12px;
+  background: transparent; color: #555;
+  border: 0; cursor: pointer;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Success screen */
+.success-screen { text-align: center; padding: 1rem 0; }
+.success-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #EAF3DE; color: #27500A;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 32px; font-weight: 700;
+}
+.rank-pill {
+  display: inline-block;
+  background: #EAF3DE; color: #27500A;
+  font-size: 14px; font-weight: 500;
+  padding: 6px 18px; border-radius: 20px;
+}
+.wa-btn {
+  display: inline-block;
+  width: 100%;
+  background: #25D366; color: #fff;
+  border: none; padding: 14px;
+  border-radius: 10px; font-size: 15px; font-weight: 500;
+  cursor: pointer; margin: 1rem 0;
+  text-decoration: none;
+  text-align: center;
+}
+.wa-btn:hover { background: #1FB855; color: #fff; }
+
+.muted { color: #888; }
+
+/* iOS Safari zooms into inputs <16px on focus — hold size up on mobile */
+@media (max-width: 600px) {
+  input, select { font-size: 16px; padding: 12px; }
+  .submit-btn { padding: 16px; font-size: 16px; }
+}

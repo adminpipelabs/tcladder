@@ -2,9 +2,10 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const router = express.Router();
 const db = require('../db');
+const upload = require('../upload');
+const kazi = require('../kazi');
 const { requireAuth, requirePaid } = require('../middleware');
 
-const SALT_ROUNDS = 12;
 const VALID_SPORTS = ['tennis', 'padel', 'pickleball'];
 const VALID_SKILL_LEVELS = {
   tennis: ['3.0', '3.5', '4.0', '4.5+'],
@@ -12,68 +13,73 @@ const VALID_SKILL_LEVELS = {
   pickleball: ['beginner', 'intermediate', 'advanced', 'competitive']
 };
 const normEmail = (e) => (e || '').trim().toLowerCase();
+// Strip whitespace, dashes, parentheses; preserve + prefix per gotcha 11.4
+const normPhone = (p) => (p || '').replace(/[\s\-\(\)]/g, '');
 
+// === Mobile-first registration (phone-based, no password, no session) ===
 router.get('/register', (req, res) => {
-  if (req.session.userId) return res.redirect('/dashboard');
-  res.render('register', { error: null, form: {} });
+  res.render('register', { error: req.query.error || null });
 });
 
-router.post('/register', async (req, res) => {
-  const { name, password, phone, location } = req.body;
-  const sport = req.body.sport;
-  const skill_level = req.body.skill_level;
-  const email = normEmail(req.body.email);
-  const form = { name, email, phone, sport, skill_level, location };
+router.post('/register', upload.single('photo'), (req, res) => {
+  const { name, sport, skill_level, location } = req.body;
+  const phone = normPhone(req.body.phone);
 
-  if (!name || !email || !password || !sport || !skill_level) {
-    return res.render('register', { error: 'Name, email, password, sport, and skill level are required', form });
+  if (!name || !phone || !sport || !skill_level) {
+    return res.redirect('/register?error=missing_fields');
   }
   if (!VALID_SPORTS.includes(sport)) {
-    return res.render('register', { error: 'Invalid sport', form });
+    return res.redirect('/register?error=invalid_sport');
   }
   if (!VALID_SKILL_LEVELS[sport].includes(skill_level)) {
-    return res.render('register', { error: 'Invalid skill level for ' + sport, form });
-  }
-  if (password.length < 8) {
-    return res.render('register', { error: 'Password must be at least 8 characters', form });
+    return res.redirect('/register?error=invalid_level');
   }
 
-  const season = db.prepare('SELECT id FROM seasons WHERE active = 1').get();
-  if (!season) return res.render('register', { error: 'No active season - please contact the administrator', form });
+  const season = db.prepare('SELECT * FROM seasons WHERE active = 1').get();
+  if (!season) return res.redirect('/register?error=no_active_season');
 
-  let passwordHash;
-  try { passwordHash = await bcrypt.hash(password, SALT_ROUNDS); }
-  catch (err) { console.error('[auth] bcrypt hash failed', err); return res.render('register', { error: 'Server error - please try again', form }); }
+  const dup = db.prepare(
+    'SELECT id FROM players WHERE phone = ? AND season_id = ?'
+  ).get(phone, season.id);
+  if (dup) return res.redirect('/register?error=phone_taken');
 
-  const create = db.transaction(() => {
-    const maxRank = db.prepare(
-      'SELECT MAX(rank) as m FROM players WHERE season_id = ? AND sport = ? AND skill_level = ?'
-    ).get(season.id, sport, skill_level);
-    const newRank = (maxRank.m || 0) + 1;
-    const result = db.prepare(`
-      INSERT INTO players (season_id, name, email, password_hash, phone, sport, skill_level, location, rank)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(season.id, name, email, passwordHash, phone || null, sport, skill_level, location || null, newRank);
-    return { id: result.lastInsertRowid, rank: newRank };
-  });
+  const photo_path = req.file ? '/uploads/' + req.file.filename : null;
 
-  let player;
-  try { player = create(); }
-  catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.render('register', { error: 'An account with that email already exists for this season', form });
-    console.error('[auth] register failed', err);
-    return res.render('register', { error: 'Server error - please try again', form });
+  let rank;
+  try {
+    const create = db.transaction(() => {
+      const maxRank = db.prepare(`
+        SELECT MAX(rank) as m FROM players
+        WHERE season_id = ? AND sport = ? AND skill_level = ?
+      `).get(season.id, sport, skill_level);
+      const newRank = (maxRank.m || 0) + 1;
+      db.prepare(`
+        INSERT INTO players
+          (season_id, name, phone, sport, skill_level, location, photo_path, rank)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(season.id, name, phone, sport, skill_level, location || null, photo_path, newRank);
+      return newRank;
+    });
+    rank = create();
+  } catch (err) {
+    console.error('[auth] mobile register failed', err);
+    return res.redirect('/register?error=server_error');
   }
 
-  req.session.userId = player.id;
-  req.session.playerName = name;
-  req.session.userRank = player.rank;
-  req.session.email = email;
-  req.session.sport = sport;
-  req.session.skillLevel = skill_level;
-  res.redirect('/dashboard');
+  // Fire-and-forget WhatsApp welcome
+  kazi.sendWelcome({ name, phone, sport, skill_level, rank });
+
+  const params = new URLSearchParams({ name, sport, level: skill_level, rank: String(rank) });
+  res.redirect('/register/success?' + params.toString());
 });
 
+router.get('/register/success', (req, res) => {
+  const { name, sport, level, rank } = req.query;
+  const kaziWaNumber = (process.env.KAZI_WA_NUMBER || '').replace(/^\+/, '');
+  res.render('register-success', { name, sport, level, rank, kaziWaNumber });
+});
+
+// === Admin login (email + password) — unchanged from v1.1 ===
 router.get('/login', (req, res) => {
   if (req.session.userId) return res.redirect('/dashboard');
   res.render('login', { error: null, form: {} });
@@ -89,8 +95,11 @@ router.post('/login', async (req, res) => {
   const season = db.prepare('SELECT id FROM seasons WHERE active = 1').get();
   if (!season) return res.render('login', { error: 'No active season', form });
 
-  const player = db.prepare('SELECT id, name, email, password_hash, sport, skill_level, rank FROM players WHERE email = ? AND season_id = ?').get(email, season.id);
-  if (!player) return res.render('login', { error: 'Invalid email or password', form });
+  const player = db.prepare(
+    'SELECT id, name, email, password_hash, sport, skill_level, rank FROM players WHERE email = ? AND season_id = ?'
+  ).get(email, season.id);
+  // Mobile-registered players have no password_hash and can't log in this way.
+  if (!player || !player.password_hash) return res.render('login', { error: 'Invalid email or password', form });
 
   let valid;
   try { valid = await bcrypt.compare(password, player.password_hash); }
